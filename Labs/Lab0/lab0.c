@@ -30,10 +30,10 @@ const int initWidth=512,initHeight=512;
 // Model-to-world matrix
 // Modify this matrix.
 // See below for how it is applied to your model.
-mat4 objectExampleMatrix = {{ 1.0, 0.0, 0.0, 0.0,
-                              0.0, 1.0, 0.0, 0.0,
-                              0.0, 0.0, 1.0, 0.0,
-							  0.0, 0.0, 0.0, 1.0}};
+mat4 teapotMatrix;
+mat4 bunnyMatrix2;
+mat4 bunnyMatrix3;
+
 							  
 // World-to-view matrix. Usually set by lookAt() or similar.
 mat4 viewMatrix;
@@ -42,11 +42,14 @@ mat4 projectionMatrix;
 
 // Globals
 // * Model(s)
-Model *bunny;
+Model *Teapot;
+Model *bunny2;
+Model *bunny3;
 // * Reference(s) to shader program(s)
 GLuint program;
 // * Texture(s)
 GLuint texture;
+
 
 void init(void)
 {
@@ -67,58 +70,68 @@ void init(void)
 	printError("init shader");
 	
 	// Upload geometry to the GPU:
-	bunny = LoadModelPlus("objects/stanford-bunny.obj");
+	Teapot = LoadModelPlus("objects/teapot.obj");
+	bunny2 = LoadModelPlus("objects/stanford-bunny.obj");
+	bunny3 = LoadModelPlus("objects/stanford-bunny.obj");
 	printError("load models");
 
 	// Load textures
 	LoadTGATextureSimple("textures/maskros512.tga",&texture);
 	printError("load textures");
+
+	teapotMatrix = IdentityMatrix();
+	bunnyMatrix2 = IdentityMatrix();
+	bunnyMatrix3 = IdentityMatrix();
+	
 }
 
 
 void display(void)
 {
-	GLfloat time = (GLfloat) glutGet(GLUT_ELAPSED_TIME);
+	
 	printError("pre display");
-
+	GLfloat time = (GLfloat) glutGet(GLUT_ELAPSED_TIME);	
 	// clear the screen
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-	//Translation
-	float theta = 0.001 * time;
-
-	mat4 rotateYMatrix = {{ cos(theta),  0.0, sin(theta), 	0.0,
-								0.0, 		 1.0, 0.0, 			0.0,
-								-sin(theta), 0.0, cos(theta), 	0.0,
-								0.0, 		 0.0, 0.0, 			1.0}};
-
-	mat4 translateXMatrix = {{ 	1.0, 0.0, 0.0, 0.0,
-							   	0.0, 1.0, 0.0, 0.0,
-								0.0, 0.0, 1.0, -1.0,
-								0.0, 0.0, 0.0, 1.0}};
-
-	mat4 objectExampleMatrix = Mult(translateXMatrix, rotateYMatrix);
-
+	glUniform1i(glGetUniformLocation(program,"exampletexture"),0);//the last argument has to be the same as the texture-unit that is to be used
+	glActiveTexture(GL_TEXTURE0);//which texture-unit is active
+	glBindTexture(GL_TEXTURE_2D, texture);//load the texture to active texture-unit
 
 
 
 	//activate the program, and set its variables
 	glUseProgram(program);
 	glUniformMatrix4fv(glGetUniformLocation(program, "projectionMatrix"), 1, GL_TRUE, projectionMatrix.m);
-	mat4 m = Mult(viewMatrix, objectExampleMatrix);
-
-	glUniformMatrix4fv(glGetUniformLocation(program, "viewMatrix"), 1, GL_TRUE, m.m);
-	
 	glUniform1f(glGetUniformLocation(program, "time"), time);
 
-	// Add light source
-	vec3 light1 = {1.0, 0.0, 0.0};
-	glUniform3f(glGetUniformLocation(program, "lightPos"), light1.x, light1.y, light1.z);
-	
+	float theta = 0.001*time;
 
-	//draw the model
-	DrawModel(bunny, program, "in_Position", "in_Normal", NULL);
-	
+	// Teapot
+	mat4 m = Mult(teapotMatrix, T(0.0, 0.0, -1.0));
+	m = Mult(m, Ry(theta));
+	m = Mult(viewMatrix, m);
+	glUniformMatrix4fv(glGetUniformLocation(program, "viewMatrix"), 1, GL_TRUE, m.m);
+	DrawModel(Teapot, program, "in_Position", "in_Normal", "in_TexCoord");
+
+	// Bunny2
+	m = Mult(bunnyMatrix2, T(-2.0, 0.0, -2.0));
+	m = Mult(m, Ry(theta));
+	m = Mult(viewMatrix, m);
+	glUniformMatrix4fv(glGetUniformLocation(program, "viewMatrix"), 1, GL_TRUE, m.m);
+	DrawModel(bunny2, program, "in_Position", "in_Normal", "in_TexCoord");
+
+	// Bunny3
+	m = Mult(bunnyMatrix3, T(2.0, 0.0, -2.0));
+	m = Mult(m, Ry(theta));
+	m = Mult(viewMatrix, m);
+	glUniformMatrix4fv(glGetUniformLocation(program, "viewMatrix"), 1, GL_TRUE, m.m);
+	DrawModel(bunny3, program, "in_Position", "in_Normal", "in_TexCoord");
+
+	// Add light source
+	vec3 light1 = {0.0, 100.0, 0.0};
+	glUniform3f(glGetUniformLocation(program, "lightPos"), light1.x, light1.y, light1.z);
+
 	printError("display");
 	
 	glutSwapBuffers();

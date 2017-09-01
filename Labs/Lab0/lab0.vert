@@ -15,15 +15,19 @@ uniform mat4 viewMatrix;
 
 out vec3 vNormal;
 out vec3 vPos;
+out vec2 frag_texcoord;
 
 void main(void)
 {
 	vPos = in_Position;
 	// Recalculate vertex normal
 	vec4 oNormal = projectionMatrix * viewMatrix * vec4(in_Normal, 1.0);
-	
-	// Convert to vec3 
-	vNormal = normalize(vec3(oNormal.x, oNormal.y, oNormal.z));
+
+
+	frag_texcoord=in_TexCoord;	
+
+	// Convert to vec3 and normalize
+	vNormal = normalize(mat3(viewMatrix) * in_Normal);
 
 	gl_Position=projectionMatrix*viewMatrix*vec4(in_Position, 1.0);
 }

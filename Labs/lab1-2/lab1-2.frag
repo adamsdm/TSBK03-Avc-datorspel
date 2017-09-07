@@ -8,7 +8,10 @@ in vec3 out_Normal;
 in vec3 Ps;
 in vec3 Pt;
 in vec3 pixPos;  // Needed for specular reflections
+
 uniform sampler2D texUnit;
+uniform float factor;
+
 out vec4 out_Color;
 
 void main(void)
@@ -23,8 +26,7 @@ void main(void)
 	vec3 bs = texture(texUnit, outTexCoord + vec2(offset, 0.0)).xyz - texture(texUnit, outTexCoord).xyz;
 	vec3 bt = texture(texUnit, outTexCoord + vec2(0.0, offset)).xyz - texture(texUnit, outTexCoord).xyz;
 	
-	float f = 20.0; // scaling factor
-	vec3 normal = normalize(out_Normal + f*(bs*Ps) + f*(bt*Pt));
+	vec3 normal = normalize(out_Normal + factor*(bs*Ps) + factor*(bt*Pt));
 
 
 	// Simplified lighting calculation.

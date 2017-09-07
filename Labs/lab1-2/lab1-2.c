@@ -186,7 +186,9 @@ void display(void)
     glUniformMatrix4fv(glGetUniformLocation(shader, "viewMatrix"), 1, GL_TRUE, viewMatrix.m);
     glUniform3fv(glGetUniformLocation(shader, "camPos"), 1, &cam.x);
     glUniform1i(glGetUniformLocation(shader, "texUnit"), 0);
-
+	
+	float factor = -2;
+	glUniform1f(glGetUniformLocation(shader, "factor"), factor);
     DrawModel(cube, shader, "in_Position", "in_Normal", "in_TexCoord");
 
 	glutSwapBuffers();

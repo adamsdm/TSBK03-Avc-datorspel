@@ -178,10 +178,7 @@ void display(void)
 	//----------BLUR---------//
 	//-----------------------//
 
-	glDisable(GL_CULL_FACE);
-	glDisable(GL_DEPTH_TEST);
-
-	for(int i=0; i<40; i++){
+	for(int i=0; i<60; i++){
 		// Filter y
 		glUseProgram(lpY);
 		useFBO(fbo3, fbo2, 0L);
@@ -202,7 +199,7 @@ void display(void)
 	glUseProgram(combineShader);
 	glUniform1i(glGetUniformLocation(combineShader, "texUnit2"), 1);
 	
-	useFBO(fbo4, fbo3, fbo1);
+	useFBO(fbo4, fbo2, fbo1);
 	DrawModel(squareModel, combineShader, "in_Position", NULL, "in_TexCoord");
 	
 

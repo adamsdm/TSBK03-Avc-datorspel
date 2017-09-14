@@ -178,7 +178,7 @@ void display(void)
 	//----------BLUR---------//
 	//-----------------------//
 
-	for(int i=0; i<60; i++){
+	for(int i=0; i<40; i++){
 		// Filter y
 		glUseProgram(lpY);
 		useFBO(fbo3, fbo2, 0L);
@@ -195,7 +195,7 @@ void display(void)
 	//-----------------------//
 	//---------COMBINE-------//
 	//-----------------------//
-	// SE FÖRELÄSNINGSSLIDES
+	
 	glUseProgram(combineShader);
 	glUniform1i(glGetUniformLocation(combineShader, "texUnit2"), 1);
 	
@@ -203,6 +203,9 @@ void display(void)
 	DrawModel(squareModel, combineShader, "in_Position", NULL, "in_TexCoord");
 	
 
+	//-----------------------//
+	//----------DRAW---------//
+	//-----------------------//
 	// Done rendering the FBO! Set up for rendering on screen, using the result as texture!
 
 //	glFlush(); // Can cause flickering on some systems. Can also be necessary to make drawing complete.

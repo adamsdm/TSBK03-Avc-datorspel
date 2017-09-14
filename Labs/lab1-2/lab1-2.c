@@ -141,10 +141,10 @@ void init(void)
     glCullFace(GL_BACK);
 
     // Load shader
-    shader = loadShaders("lab1-2.vert", "lab1-2.frag");
+    shader = loadShaders("lab1-2.vert", "lab1-2b.frag");
 
     // Load bump map (you are encouraged to try different ones)
-    LoadTGATextureSimple("bumpmaps/uppochner.tga", &bumpTex);
+    LoadTGATextureSimple("bumpmaps/ruta.tga", &bumpTex);
 
 	// load the model
     cube = LoadModelPlus("cubeexp.obj");

@@ -5,7 +5,8 @@
 
 // 2013: Adapted to VectorUtils3 and MicroGlut.
 
-// gcc skinning.c ../common/*.c ../common/Mac/MicroGlut.m -o lab2 -framework OpenGL -framework Cocoa -I../common/Mac -I../common
+// gcc skinning.c ../common/*.c -lGL -o skinning -I../common
+
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
@@ -65,8 +66,7 @@ Point3D g_normalsRes[kMaxRow][kMaxCorners];
 // vertex attributes sent to OpenGL
 Point3D g_boneWeights[kMaxRow][kMaxCorners];
 
-//float weight[kMaxRow] = {0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0}; // Task 1 weights
-float weight[kMaxRow] = {0.0, 0.1, 0.2, 0.3, 0.4, 0.5 ,0.6, 0.7, 0.8, 0.9}; // Task 2 weights
+float weight[kMaxRow] = {0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 
 Model *cylinderModel; // Collects all the above for drawing with glDrawElements
 
@@ -81,7 +81,7 @@ void BuildCylinder()
 	long	row, corner, cornerIndex;
 	float g_vertstex[kMaxRow][kMaxCorners][2];
 
-	// sï¿½tter vï¿½rden till alla vertexar i meshen
+	// sätter värden till alla vertexar i meshen
 	for (row = 0; row < kMaxRow; row++)
 		for (corner = 0; corner < kMaxCorners; corner++)
 		{
@@ -96,7 +96,6 @@ void BuildCylinder()
 			g_boneWeights[row][corner].x = (1-weight[row]);
 			g_boneWeights[row][corner].y = weight[row];
 			g_boneWeights[row][corner].z = 0.0;
-
 		};
 
 	// g_poly definerar mellan vilka vertexar som 
@@ -118,7 +117,7 @@ void BuildCylinder()
 				g_poly[cornerIndex * 2 + 1].v3 = cornerIndex + kMaxCorners;
 			}
 			else
-			{ // Specialfall: sista i varvet, gï¿½u runt hï¿½rnet korrekt
+			{ // Specialfall: sista i varvet, gåu runt hörnet korrekt
 				cornerIndex = row * kMaxCorners + corner;
 				g_poly[cornerIndex * 2].v1 = cornerIndex;
 				g_poly[cornerIndex * 2].v2 = cornerIndex + 1 - kMaxCorners;
@@ -130,7 +129,7 @@ void BuildCylinder()
 			}
 		}
 	
-	// lï¿½gger en kopia av originalmodellen i g_vertsRes & g_normalsRes
+	// lägger en kopia av originalmodellen i g_vertsRes & g_normalsRes
 
 	for (row = 0; row < kMaxRow; row++)
 		for (corner = 0; corner < kMaxCorners; corner++)
@@ -165,15 +164,15 @@ typedef struct Bone
 
 ///////////////////////////////////////
 //		G _ B O N E S
-// vï¿½rt skelett; just nu innehï¿½ller det 2 ben ...
+// vårt skelett; just nu innehåller det 2 ben ...
 Bone g_bones[2];
 
 
 ///////////////////////////////////////////////////////
 //		S E T U P	B O N E S
 //
-// Desc:	sï¿½tter ut ben 0 i origo och 
-//			ben 1 pï¿½ pos (4.5, 0, 0)
+// Desc:	sätter ut ben 0 i origo och 
+//			ben 1 på pos (4.5, 0, 0)
 void setupBones(void)
 {
 	g_bones[0].pos = SetVector(0.0f, 0.0f, 0.0f);
@@ -192,25 +191,7 @@ void DeformCylinder()
 	// Point3D v1, v2;
 	int row, corner;
 	
-	Point3D g_vertstmp0[kMaxRow][kMaxCorners];
-	Point3D g_vertstmp1[kMaxRow][kMaxCorners];
-
-	// Setup matrices
-	mat4 bone0T = T(g_bones[0].pos.x, g_bones[0].pos.y, g_bones[0].pos.z);
-	mat4 bone0TInv = InvertMat4(bone0T);	
-	mat4 Mbone0 = Mult(bone0T, g_bones[0].rot);
-	mat4 MPbone0 = Mult(Mbone0, g_bones[0].rot);
-	mat4 MIbone0 = InvertMat4(Mbone0);
-
-	mat4 bone1T = T(g_bones[1].pos.x, g_bones[1].pos.y, g_bones[1].pos.z);
-	mat4 bone1TInv = InvertMat4(bone1T);
-	mat4 Mbone1 = Mult(bone1T, g_bones[1].rot);
-	mat4 MPbone1 = Mult(Mbone1, g_bones[1].rot);
-	mat4 MIbone1 = InvertMat4(Mbone1);
-
-	
-
-	// fï¿½r samtliga vertexar 
+	// för samtliga vertexar 
 	for (row = 0; row < kMaxRow; row++)
 	{
 		for (corner = 0; corner < kMaxCorners; corner++)
@@ -221,45 +202,27 @@ void DeformCylinder()
 			// Deformera cylindern enligt det skelett som finns
 			// i g_bones.
 			//
-			// Gï¿½r hard skinning.
+			// Gör hard skinning.
 			//
-			// g_bones innehï¿½ller benen.
-			// g_vertsOrg innehï¿½ller ursprunglig vertexdata.
-			// g_vertsRes innehï¿½ller den vertexdata som skickas till OpenGL.
+			// g_bones innehåller benen.
+			// g_vertsOrg innehåller ursprunglig vertexdata.
+			// g_vertsRes innehåller den vertexdata som skickas till OpenGL.
 			//
-			// row traverserar i cylinderns lï¿½ngdriktning,
+			// row traverserar i cylinderns längdriktning,
 			// corner traverserar "runt" cylindern
-			
-			// vâ€™ = m = Mâ€™ben1Mâ€™ben2M-1ben2M-1ben1vm
-			
-			// vec3 vPrim = MultVec3(Mult(Mult(MPbone0, MPbone1), Mult(MIbone1, MIbone0)) , g_vertsOrg[row][corner]);
-			
-			// if(weight[row] > 0){
-			// 	g_vertsRes[row][corner].x = vPrim.x * weight[row];
-			// 	g_vertsRes[row][corner].y = vPrim.y * weight[row];
-			// 	g_vertsRes[row][corner].z = vPrim.z * weight[row];
-			// }
 			
 			
 			// ---=========	Uppgift 2: Soft skinning i CPU ===========------
 			// Deformera cylindern enligt det skelett som finns
 			// i g_bones.
 			//
-			// Gï¿½r soft skinning.
+			// Gör soft skinning.
 			//
-			// g_bones innehï¿½ller benen.
-			// g_boneWeights innehï¿½ller blendvikter fï¿½r benen.
-			// g_vertsOrg innehï¿½ller ursprunglig vertexdata.
-			// g_vertsRes innehï¿½ller den vertexdata som skickas till OpenGL.
+			// g_bones innehåller benen.
+			// g_boneWeights innehåller blendvikter för benen.
+			// g_vertsOrg innehåller ursprunglig vertexdata.
+			// g_vertsRes innehåller den vertexdata som skickas till OpenGL.
 			
-			//vâ€™m = âˆ‘ wiMiv = w1M1vm + w2M2vm
-
-			// vec3 w1M1vm = ScalarMult(MultVec3(Mbone0, g_vertsOrg[row][corner]), (1-weight[row]));
-			// vec3 w2M2vm = ScalarMult(MultVec3(Mbone1, g_vertsOrg[row][corner]),  weight[row]);
-
-			// g_vertsRes[row][corner] = VectorAdd(w1M1vm, w2M2vm);
-
-
 		}
 	}
 }
@@ -267,7 +230,7 @@ void DeformCylinder()
 
 /////////////////////////////////////////////
 //		A N I M A T E	B O N E S
-// Desc:	en vï¿½ldigt enkel amination av skelettet
+// Desc:	en väldigt enkel amination av skelettet
 //			vrider ben 1 i en sin(counter) 
 void animateBones(void)
 {
@@ -276,7 +239,7 @@ void animateBones(void)
 	// Hur mycket skall vi vrida?
 	float angle = sin(time * 3.f) / 2.0f * 3.0f;
 
-	// rotera pï¿½ ben 1
+	// rotera på ben 1
 	g_bones[1].rot = Rz(angle);
 //	printf("%f %f\n", angle, time);
 }
@@ -284,47 +247,33 @@ void animateBones(void)
 
 ///////////////////////////////////////////////
 //		S E T	B O N E	R O T A T I O N
-// Desc:	sï¿½tter bone rotationen i vertex shadern
+// Desc:	sätter bone rotationen i vertex shadern
 void setBoneRotation(void)
 {
-	// Uppgift 3 TODO: Hï¿½r behï¿½ver du skicka ï¿½ver benens rotation
+	// Uppgift 3 TODO: Här behöver du skicka över benens rotation
 	// till vertexshadern
-
-	// Bone 1
-	mat4 Rb1 = g_bones[0].rot;
-	glUniformMatrix4fv(glGetUniformLocation(g_shader, "Rb1"), 1, GL_TRUE, Rb1.m);
-
-	// Bone 2
-	mat4 Rb2 = g_bones[1].rot;
-	glUniformMatrix4fv(glGetUniformLocation(g_shader, "Rb2"), 1, GL_TRUE, Rb2.m);
-	
 }
 
 
 ///////////////////////////////////////////////
 //		 S E T	B O N E	L O C A T I O N
-// Desc:	sï¿½tter bone positionen i vertex shadern
+// Desc:	sätter bone positionen i vertex shadern
 void setBoneLocation(void)
 {
-	// Uppgift 3 TODO: Hï¿½r behï¿½ver du skicka ï¿½ver benens position
+	// Uppgift 3 TODO: Här behöver du skicka över benens position
 	// till vertexshadern
-	mat4 Tb1 = T(g_bones[0].pos.x, g_bones[0].pos.y, g_bones[0].pos.z);
-	glUniformMatrix4fv(glGetUniformLocation(g_shader, "Tb1"), 1, GL_TRUE, Tb1.m);
-
-	mat4 Tb2 = T(g_bones[1].pos.x, g_bones[1].pos.y, g_bones[1].pos.z);
-	glUniformMatrix4fv(glGetUniformLocation(g_shader, "Tb2"), 1, GL_TRUE, Tb2.m);
 }
 
 
 ///////////////////////////////////////////////
 //		 D R A W	C Y L I N D E R
-// Desc:	sï¿½tter bone positionen i vertex shadern
+// Desc:	sätter bone positionen i vertex shadern
 void DrawCylinder()
 {
 	animateBones();
 
 	// ---------=========	UPG 2 ===========---------
-	// Ersï¿½tt DeformCylinder med en vertex shader som gï¿½r vad DeformCylinder gï¿½r.
+	// Ersätt DeformCylinder med en vertex shader som gör vad DeformCylinder gör.
 	// Begynnelsen till shaderkoden ligger i filen "shader.vert" ...
 	
 	DeformCylinder();

@@ -65,7 +65,8 @@ Point3D g_normalsRes[kMaxRow][kMaxCorners];
 // vertex attributes sent to OpenGL
 Point3D g_boneWeights[kMaxRow][kMaxCorners];
 
-float weight[kMaxRow] = {0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+//float weight[kMaxRow] = {0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+float weight[kMaxRow] = {0.0, 0.1, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.9, 1.0};
 
 Model *cylinderModel; // Collects all the above for drawing with glDrawElements
 
@@ -95,6 +96,7 @@ void BuildCylinder()
 			g_boneWeights[row][corner].x = (1-weight[row]);
 			g_boneWeights[row][corner].y = weight[row];
 			g_boneWeights[row][corner].z = 0.0;
+
 		};
 
 	// g_poly definerar mellan vilka vertexar som 
@@ -195,17 +197,15 @@ void DeformCylinder()
 
 	// Setup matrices
 	mat4 bone0T = T(g_bones[0].pos.x, g_bones[0].pos.y, g_bones[0].pos.z);
-	mat4 bone0TInv = InvertMat4(bone0T);
-	mat4 bone0R = g_bones[0].rot;
-	mat4 Mbone0 = Mult(bone0T, bone0R);
-	mat4 MPbone0 = Mult(Mbone0, bone0R);
+	mat4 bone0TInv = InvertMat4(bone0T);	
+	mat4 Mbone0 = Mult(bone0T, g_bones[0].rot);
+	mat4 MPbone0 = Mult(Mbone0, g_bones[0].rot);
 	mat4 MIbone0 = InvertMat4(Mbone0);
 
 	mat4 bone1T = T(g_bones[1].pos.x, g_bones[1].pos.y, g_bones[1].pos.z);
 	mat4 bone1TInv = InvertMat4(bone1T);
-	mat4 bone1R = g_bones[1].rot;
-	mat4 Mbone1 = Mult(bone1T, bone1R);
-	mat4 MPbone1 = Mult(Mbone1, bone1R);
+	mat4 Mbone1 = Mult(bone1T, g_bones[1].rot);
+	mat4 MPbone1 = Mult(Mbone1, g_bones[1].rot);
 	mat4 MIbone1 = InvertMat4(Mbone1);
 
 	// f�r samtliga vertexar 
@@ -229,6 +229,7 @@ void DeformCylinder()
 			// corner traverserar "runt" cylindern
 			
 			// v’ = m = M’ben1M’ben2M-1ben2M-1ben1vm
+			/*
 			vec3 vPrim = MultVec3(Mult(Mult(MPbone0, MPbone1), Mult(MIbone1, MIbone0)) , g_vertsOrg[row][corner]);
 			
 			if(weight[row] > 0){
@@ -236,10 +237,7 @@ void DeformCylinder()
 				g_vertsRes[row][corner].y = vPrim.y * weight[row];
 				g_vertsRes[row][corner].z = vPrim.z * weight[row];
 			}
-
-			// ====== Update vertex positions ====== //
-			// Multiply by the weights
-			
+			*/
 			
 			// ---=========	Uppgift 2: Soft skinning i CPU ===========------
 			// Deformera cylindern enligt det skelett som finns
@@ -252,6 +250,12 @@ void DeformCylinder()
 			// g_vertsOrg inneh�ller ursprunglig vertexdata.
 			// g_vertsRes inneh�ller den vertexdata som skickas till OpenGL.
 			
+			//v’m = ∑ wiMiv = w1M1vm + w2M2vm
+			vec3 w1M1vm = ScalarMult(MultVec3(Mbone0, g_vertsOrg[row][corner]), (1-weight[row]));
+			vec3 w2M2vm = ScalarMult(MultVec3(Mbone1, g_vertsOrg[row][corner]),  weight[row]);
+
+			g_vertsRes[row][corner] = VectorAdd(w1M1vm, w2M2vm);
+
 		}
 	}
 }

@@ -77,7 +77,7 @@ typedef struct
 
   vec3 F, T; // accumulated force and torque
 
-//  mat4 J, Ji; We could have these but we can live without them for spheres.
+  mat4 J, Ji; 
   vec3 omega; // Angular momentum
   vec3 v; // Change in velocity
 
@@ -103,7 +103,7 @@ Material ballMt = { { 1.0, 1.0, 1.0, 1.0 }, { 1.0, 1.0, 1.0, 0.0 },
                 };
 
 
-enum {kNumBalls = 4}; // Change as desired, max 16
+enum {kNumBalls = 7}; // Change as desired, max 16
 
 //------------------------------Globals---------------------------------
 ModelTexturePair tableAndLegs, tableSurf;
@@ -194,9 +194,12 @@ void updateWorld()
             iXjX = VectorSub(ball[i].X, ball[j].X); // Vector from ball[i] -> ball[j]
             iXjXnorm = Normalize(iXjX);
 
+            // Relative velocity
+            vec3 iVjV = VectorSub(ball[i].v, ball[j].v);
+            float onCollisionCourse = DotProduct(iXjX, iVjV);
 
             // If we have a collision
-            if(Norm(iXjX) <= 2.0*kBallSize){
+            if(Norm(iXjX) <= 2.0*kBallSize && onCollisionCourse < 0.0){
                 // Vector from center to point of impact
                 rA = ScalarMult(iXjXnorm, kBallSize);
                 rB = ScalarMult(iXjXnorm, -1.0f * kBallSize);
@@ -208,8 +211,7 @@ void updateWorld()
                 // vrel = (vpA - vpB) • n
                 vRel = DotProduct(VectorSub(vpA, vpB), iXjXnorm);
 
-                impulse = -(elasticity + 1.0) * vRel
-                            / (1/ball[i].mass+1/ball[j].mass);
+                impulse = -(elasticity + 1.0) * vRel / (1/ball[i].mass+1/ball[j].mass);
 
                 ball[i].P = VectorAdd(ball[i].P, ScalarMult(iXjXnorm, impulse));
                 ball[j].P = VectorAdd(ball[j].P, ScalarMult(iXjXnorm, -impulse));
@@ -223,12 +225,15 @@ void updateWorld()
 	// friction against floor, simplified as well as more correct
 	for (i = 0; i < kNumBalls; i++)
 	{
+        vec3 r = SetVector(0, kBallSize/2, 0); // Collision of ball to floor vector        
+		ball[i].L = ScalarMult(CrossProduct(r, ball[i].P), 0.5); // Calculate angular momentum
+		vec3 friction = ScalarMult(Normalize(ball[i].v), -1.0); // Calculate a breaking friction force
 
-        vec3 rotAxis = CrossProduct(SetVector(0.0, 1.0, 0.0), ball[i].v);
-        GLfloat speed = 0.01*sqrt(pow(ball[i].v.x,2) + pow(ball[i].v.y,2) + pow(ball[i].v.z,2));
+        // Only apply the friction force if the balls are moving
+		if(Norm(ball[i].v) > 0){
+          ball[i].F = ScalarMult(friction, .20f);
+        }
 
-        ball[i].R = ArbRotate(rotAxis,  speed  * glutGet(GLUT_ELAPSED_TIME));
-        
 	}
 
 // Update state, follows the book closely
@@ -238,12 +243,14 @@ void updateWorld()
 		mat4 Rd;
 
 		// Note: omega is not set. How do you calculate it?
-        // YOUR CODE HERE
-        // ω = J^-1 * L, where J is the moment of interia and L the angular momentum
-        //ball[i].omega = InvertMat3(ball[i].J)
+        // Calculate omega
+        
+        // L = J·ω (=) ω = J-1 · L
+        ball[i].omega = MultVec3(ball[i].Ji, ball[i].L);
 
 //		v := P * 1/mass
         ball[i].v = ScalarMult(ball[i].P, 1.0/(ball[i].mass));
+
         
 //		X := X + v*dT
 		dX = ScalarMult(ball[i].v, deltaT); // dX := v*dT
@@ -257,8 +264,8 @@ void updateWorld()
 		dP = ScalarMult(ball[i].F, deltaT); // dP := F*dT
 		ball[i].P = VectorAdd(ball[i].P, dP); // P := P + dP
 //		L := L + t * dT
-		dL = ScalarMult(ball[i].T, deltaT); // dL := T*dT
-		ball[i].L = VectorAdd(ball[i].L, dL); // L := L + dL
+        dL = ScalarMult(ball[i].T, deltaT); // dL := T*dT
+        ball[i].L = VectorAdd(ball[i].L, dL); // L := L + dL
 
 		OrthoNormalizeMatrix(&ball[i].R);
 	}
@@ -342,21 +349,48 @@ void init()
 	for (i = 0; i < kNumBalls; i++)
 	{
 		ball[i].mass = 1.0;
-		ball[i].X = SetVector(0.0, 0.0, 0.0);
+        ball[i].X = SetVector(0.0, 0.0, 0.0);
 		ball[i].P = SetVector(((float)(i % 13))/ 50.0, 0.0, ((float)(i % 15))/50.0);
-		ball[i].R = IdentityMatrix();
-	}
-	ball[0].X = SetVector(0, 0, 0);
-    ball[0].P = SetVector(0, 0, 0);
+        ball[i].R = IdentityMatrix();
+
+        // The J matrix can be diagonalized since the spheres are symmetrical
+        GLfloat s = ball[i].mass*pow(kBallSize,2)/3;
+        ball[i].J = (mat4) {
+            s  , 0.0, 0.0, 0.0,
+            0.0, s  , 0.0, 0.0,
+            0.0, 0.0, s  , 0.0,
+            0.0, 0.0, 0.0, 1.0,
+        };
+
+        ball[i].Ji = InvertMat4(ball[i].J);
+        ball[i].omega = SetVector(0,0,0);
+    }
+
+    // Real pool setup
+
+    ball[0].X = SetVector(-0.2, 0.0, 1.2);
+    ball[0].P = SetVector(0.2, 0.0, -2.0);
+
+    // Back row
+    ball[1].X = SetVector(0.0, 0.0, -1.2);
+    ball[1].P = SetVector(0.0, 0.0, 0.0);
     
-	ball[1].X = SetVector(0, 0, 0.5);
-    ball[1].P = SetVector(0, 0, 0);
-    
-	ball[2].X = SetVector(0.0, 0, 1.0);
-    ball[2].P = SetVector(0, 0, 0);
-    
-	ball[3].X = SetVector(0, 0, 1.5);
-	ball[3].P = SetVector(0, 0, 1.00);
+    ball[2].X = SetVector(0.2, 0.0, -1.2);
+    ball[2].P = SetVector(0.0, 0.0, 0.0);
+
+    ball[3].X = SetVector(-0.2, 0.0, -1.2);
+    ball[3].P = SetVector(0.0, 0.0, 0.0);
+
+    // Middle row
+    ball[4].X = SetVector(-0.1, 0.0, -1.0);
+    ball[4].P = SetVector(0.0, 0.0, 0.0);
+    ball[5].X = SetVector(0.1, 0.0, -1.0);
+    ball[5].P = SetVector(0.0, 0.0, 0.0);
+
+    // Front row
+    ball[6].X = SetVector(0.0, 0.0, -0.8);
+    ball[6].P = SetVector(0.0, 0.0, 0.0);
+
 
     cam = SetVector(0, 2, 2);
     point = SetVector(0, 0, 0);

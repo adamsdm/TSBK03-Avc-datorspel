@@ -16,9 +16,39 @@
 #include "LoadTGA.h"
 #include "SpriteLight.h"
 #include "GL_utilities.h"
+#include "math.h"
 
 // L�gg till egna globaler h�r efter behov.
 
+GLfloat kMaxDistance = 200.0f;
+GLfloat kAlignmentWeight = 0.03;
+GLfloat kCohesionWeight = 0.001;
+GLfloat kAvoidanceWeight = 0.3;
+GLfloat kDogAvoidance = 1.0;
+GLfloat randomness = 20.0f;
+
+SpriteRec *blackSheep;
+SpriteRec *dog;
+
+/** 
+* Returns the distance between SpriteRec a and SpriteRec b
+*/
+float distance(SpriteRec *a, SpriteRec *b){
+	FPoint aPos = a->position;
+	FPoint bPos = b->position;
+
+	return sqrt( pow(aPos.h - bPos.h, 2) + pow(aPos.v - bPos.v, 2) );
+}
+
+FPoint calcAvoidance(SpritePtr i, SpritePtr j){
+	FPoint a = (FPoint){i->position.h - j->position.h, i->position.v - j->position.v};
+	float d = sqrt(pow(a.h, 2.0f) + pow(a.v, 2.0f));
+
+	a.h *= (1.0f-d/100)/d;
+	a.v *= (1.0f-d/100)/d;
+
+	return a;
+}
 
 void SpriteBehavior() // Din kod!
 {
@@ -29,24 +59,102 @@ void SpriteBehavior() // Din kod!
 
 
 	GLint count;
-	GLfloat kMaxDistance = 1.0;
 	SpritePtr ip = gSpriteRoot;
-	SpritePtr jp = ip->next;
+	SpritePtr jp = gSpriteRoot;
 
+	// Compare i with i->next, maybe compare i with ALL other???
 
 	while (ip != NULL) {
+
+
 		count = 0;
-
-		ip->speed = (FPoint) { 
-								sin( (GLfloat) 0.001*glutGet(GLUT_ELAPSED_TIME)), 
-								cos( (GLfloat) 0.001*glutGet(GLUT_ELAPSED_TIME))};		
+		ip->speedDiff = (FPoint) {0, 0};
+		ip->avaragePosition = (FPoint) {0, 0};
+		ip->avoidanceVector = (FPoint) {0, 0};	
+		
+		jp = gSpriteRoot;
 		while(jp != NULL){
+			
+			if( ip != jp && ip != dog && jp != dog){
+				if(distance(ip, jp) < kMaxDistance){
+					// Alignment
+					ip->speedDiff.h += jp->speed.h - ip->speed.h;
+					ip->speedDiff.v += jp->speed.v - ip->speed.v;
 
+					// Cohesion
+					ip->avaragePosition.h += jp->position.h;
+					ip->avaragePosition.v += jp->position.v;
+
+					// Avoidance
+					FPoint avoidance = calcAvoidance(ip, jp);
+					ip->avoidanceVector.h += avoidance.h;
+					ip->avoidanceVector.v += avoidance.v;
+
+					count++;
+				}				
+			}
+
+			if(jp == dog && distance(ip, jp) < kMaxDistance ){
+				ip->speed.h += 1/(distance(ip, jp) + 0.01) * kDogAvoidance*(ip->position.h - jp->position.h);
+				ip->speed.v += 1/(distance(ip, jp) + 0.01) * kDogAvoidance*(ip->position.v - jp->position.v);
+			}
 
 			jp = jp->next;
 		}
+
+		if(count > 0){
+
+			
+			// Divisions
+			ip->speedDiff.h /= count;
+			ip->speedDiff.v /= count;
+
+			ip->avaragePosition.h /= count;
+			ip->avaragePosition.v /= count;
+
+			ip->avoidanceVector.h /= count;
+			ip->avoidanceVector.v /= count;
+
+		}
+
 		ip = ip->next;
 	} 
+
+	// Add the resulting contributions
+	ip = gSpriteRoot;
+
+	while(ip != NULL){
+
+		if( ip == dog ){
+			ip = ip->next;
+			
+		}
+
+		// Cohesion
+		ip->speed.h += (ip->avaragePosition.h - ip->position.h) * kCohesionWeight;
+		ip->speed.v += (ip->avaragePosition.v - ip->position.v) * kCohesionWeight;
+					
+		// Seperation
+		ip->speed.h += ip->avoidanceVector.h * kAvoidanceWeight;
+		ip->speed.v += ip->avoidanceVector.v * kAvoidanceWeight;
+
+		//  Alignment
+		ip->speed.h += ip->speedDiff.h * kAlignmentWeight;
+		ip->speed.v += ip->speedDiff.v * kAlignmentWeight;
+
+		ip->position.h += ip->speed.h;
+		ip->position.v += ip->speed.v; 
+
+		if(ip == blackSheep){
+			blackSheep->speed.h += randomness * (rand() / (float)RAND_MAX) - randomness/2.0f;
+			blackSheep->speed.v += randomness * (rand() / (float)RAND_MAX) - randomness/2.0f;
+		}
+		
+
+		ip = ip->next;	
+	}
+
+
 
 }
 
@@ -100,13 +208,26 @@ void Key(unsigned char key,
   switch (key)
   {
     case '+':
-    	someValue += 0.1;
-    	printf("someValue = %f\n", someValue);
+    	kAlignmentWeight += 0.01;
+    	printf("kAlignmentWeight = %f\n", kAlignmentWeight);
     	break;
     case '-':
-    	someValue -= 0.1;
-    	printf("someValue = %f\n", someValue);
-    	break;
+		kAlignmentWeight -= 0.01;
+    	printf("kAlignmentWeight = %f\n", kAlignmentWeight);
+		break;
+	// Dog controls
+	case 'a':
+		dog->speed = (FPoint) {-3.0, 0.0};
+		break;
+	case 'd':
+		dog->speed = (FPoint) {3.0, 0.0};
+		break;
+	case 'w':
+		dog->speed = (FPoint) {0.0, 3.0};
+		break;
+	case 's':
+		dog->speed = (FPoint) {0.0, -3.0};
+		break;
     case 0x1b:
       exit(0);
   }
@@ -124,8 +245,16 @@ void Init()
 	foodFace = GetFace("bilder/mat.tga"); // Mat
 	
 	NewSprite(sheepFace, 100, 200, 1, 1);
-	NewSprite(sheepFace, 200, 100, 1.5, -1);
-	NewSprite(sheepFace, 250, 200, -1, 1.5);
+	NewSprite(sheepFace, 200, 100, 1.5, 0);
+	NewSprite(sheepFace, 250, 200, -2.0, 1.0);
+
+	NewSprite(sheepFace, 500, 600, 1, 1);
+	NewSprite(sheepFace, 700, 500, 1.5, 0);
+	NewSprite(sheepFace, 750, 600, 5.0, 1.0);
+	
+	//blackSheep = NewSprite(blackFace, 450, 300, 2.0, 3.0);
+	dog = NewSprite(dogFace, 300, 300, 0.0, 0.0);
+	
 }
 
 int main(int argc, char **argv)

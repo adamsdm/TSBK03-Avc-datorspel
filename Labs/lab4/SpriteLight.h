@@ -21,9 +21,14 @@ typedef struct FPoint
 
 typedef struct SpriteRec
 {
-	FPoint position;
 	TextureData *face;
+	
+	FPoint position;
 	FPoint speed;
+	FPoint speedDiff;
+	FPoint avaragePosition;
+	FPoint avoidanceVector;
+
 	GLfloat rotation;
 	struct SpriteRec *next;
 	

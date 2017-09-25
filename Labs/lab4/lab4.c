@@ -20,7 +20,7 @@
 
 // L�gg till egna globaler h�r efter behov.
 
-GLfloat kMaxDistance = 200.0f;
+GLfloat kMaxDistance = 100.0f;
 GLfloat kAlignmentWeight = 0.03;
 GLfloat kCohesionWeight = 0.001;
 GLfloat kAvoidanceWeight = 0.3;
@@ -227,6 +227,9 @@ void Key(unsigned char key,
 		break;
 	case 's':
 		dog->speed = (FPoint) {0.0, -3.0};
+		break;
+	case 'q':
+		dog->speed = (FPoint) {0.0, 0.0};
 		break;
     case 0x1b:
       exit(0);
